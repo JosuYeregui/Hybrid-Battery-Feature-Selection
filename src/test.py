@@ -45,11 +45,22 @@ class LSTM(nn.Module):
         out = self.fc(h_out)
         return out
 
+class CNN_1D(nn.Module):
+    def __init__(self, input_size, hidden_size):
+        super(CNN_1D, self).__init__()
+        self.conv1 = nn.Conv1d(input_size, hidden_size, 5, padding="same")
+        self.conv2 = nn.Conv1d(hidden_size, hidden_size, 5, padding="same")
+        self.conv3 = nn.Conv1d(hidden_size, 1, 5, padding="same")
+
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = self.conv3(x)
+        return x.view(-1, 1)
+
 
 df = pd.read_csv("Data/Clean_Data.csv")
 data = df.drop(columns=["split", "test"])
-pd.plotting.scatter_matrix(data, alpha=0.3)
-plt.show()
 print(df.head())
 print(data.shape[0])
 print(df.columns)
@@ -61,7 +72,7 @@ print(X_val.head())
 print(X_test.head())
 
 proc_X = preprocessing.StandardScaler().fit(X_train)
-k_best = SelectKBest(f_regression, k=5).fit(proc_X.transform(X_train), y_train)
+k_best = SelectKBest(f_regression, k=30).fit(proc_X.transform(X_train), y_train) # 30/5
 print(k_best.get_feature_names_out(X_train.columns))
 
 X_train_norm = proc_X.transform(X_train)
@@ -74,14 +85,15 @@ X_test_norm = k_best.transform(X_test_norm)
 # print(np.max(X_train_norm, axis=0), np.min(X_train_norm, axis=0))
 
 model = Net(X_train_norm.shape[1], 128, 1)
-model = LSTM(X_train_norm.shape[1], 128, 1)
+#model = LSTM(X_train_norm.shape[1], 128, 1)
+#model = CNN_1D(X_train_norm.shape[1], 128)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 for epoch in range(1000):
     # Forward pass
-    y_pred = model(torch.from_numpy(X_train_norm.reshape(X_train_norm.shape[0], 1, X_train_norm.shape[1])).float())
-    #y_pred = model(torch.from_numpy(X_train_norm).float())
+    #y_pred = model(torch.from_numpy(X_train_norm.reshape(X_train_norm.shape[0], 1, X_train_norm.shape[1])).float())
+    y_pred = model(torch.from_numpy(X_train_norm).float())
 
     # Compute and print loss
     loss = criterion(y_pred, torch.from_numpy(y_train.values.reshape(-1, 1)).float() - torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float())
@@ -92,12 +104,14 @@ for epoch in range(1000):
     loss.backward()
     optimizer.step()
 
-y_sim = y_train_sim.values.reshape(-1, 1)
-y_real = y_train.values.reshape(-1, 1)
-#y_model = model(torch.from_numpy(X_train_norm).float()).detach().numpy() + torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float().detach().numpy()
-y_model = model(torch.from_numpy(X_train_norm.reshape(X_train_norm.shape[0], 1, X_train_norm.shape[1])).float()).detach().numpy() + torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float().detach().numpy()
-loss = criterion(torch.from_numpy(y_sim).float(), torch.from_numpy(y_real).float())
-print(loss.item())
+y_sim = y_test_sim.values.reshape(-1, 1)
+y_real = y_test.values.reshape(-1, 1)
+y_model = model(torch.from_numpy(X_test_norm).float()).detach().numpy() + torch.from_numpy(y_test_sim.values.reshape(-1, 1)).float().detach().numpy()
+#y_model = model(torch.from_numpy(X_train_norm.reshape(X_train_norm.shape[0], 1, X_train_norm.shape[1])).float()).detach().numpy() + torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float().detach().numpy()
+loss_1 = criterion(torch.from_numpy(y_sim).float(), torch.from_numpy(y_real).float())
+loss_2 = criterion(y_model, torch.from_numpy(y_real).float())
+print(loss_1.item())
+print(loss_2.item())
 
 plt.plot(y_sim, label="Simulated")
 plt.plot(y_model, label="Model")
