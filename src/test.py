@@ -84,33 +84,33 @@ print(X_val.head())
 print(X_test.head())
 
 proc_X = preprocessing.StandardScaler().fit(X_train)
-k = X_train.shape[1]
+k = 20#X_train.shape[1]
 k_best = SelectKBest(mutual_info_regression, k=k).fit(proc_X.transform(X_train), y_train) # 30/5
 print(k_best.get_feature_names_out(X_train.columns))
 print(k_best.scores_)
 
 X_train_norm = proc_X.transform(X_train)
 X_train_norm = k_best.transform(X_train_norm)
-X_val_norm = proc_X.transform(X_val)
-X_val_norm = k_best.transform(X_val_norm)
+#X_val_norm = proc_X.transform(X_val)
+#X_val_norm = k_best.transform(X_val_norm)
 X_test_norm = proc_X.transform(X_test)
 X_test_norm = k_best.transform(X_test_norm)
 
 # print(np.max(X_train_norm, axis=0), np.min(X_train_norm, axis=0))
 
 model = Net(X_train_norm.shape[1], 64, 1)
-#model = LSTM(X_train_norm.shape[1], 64, 1)
+model = LSTM(X_train_norm.shape[1], 64, 1)
 #model = CNN_1D(X_train_norm.shape[1], 128)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-for epoch in range(1000):
+for epoch in range(2000):
     # Forward pass
-    #y_pred = model(torch.from_numpy(X_train_norm.reshape(X_train_norm.shape[0], 1, X_train_norm.shape[1])).float())
-    y_pred = model(torch.from_numpy(X_train_norm).float())
+    y_pred = model(torch.from_numpy(X_train_norm.reshape(X_train_norm.shape[0], 1, X_train_norm.shape[1])).float())
+    #y_pred = model(torch.from_numpy(X_train_norm).float())
 
     # Compute and print loss
-    loss = criterion(y_pred, torch.from_numpy(y_train.values.reshape(-1, 1)).float())# - torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float())
+    loss = criterion(y_pred, torch.from_numpy(y_train.values.reshape(-1, 1)).float() - torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float())
     if epoch % 100 == 0:
         print(epoch, loss.item())
 
@@ -121,8 +121,8 @@ for epoch in range(1000):
 
 y_sim = y_test_sim.values.reshape(-1, 1)
 y_real = y_test.values.reshape(-1, 1)
-y_model = model(torch.from_numpy(X_test_norm).float()) #+ torch.from_numpy(y_test_sim.values.reshape(-1, 1)).float()
-#y_model = model(torch.from_numpy(X_test_norm.reshape(X_test_norm.shape[0], 1, X_test_norm.shape[1])).float())# + torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float()
+#y_model = model(torch.from_numpy(X_test_norm).float()) #+ torch.from_numpy(y_test_sim.values.reshape(-1, 1)).float()
+y_model = model(torch.from_numpy(X_test_norm.reshape(X_test_norm.shape[0], 1, X_test_norm.shape[1])).float()) + torch.from_numpy(y_test_sim.values.reshape(-1, 1)).float()
 loss_1 = criterion(torch.from_numpy(y_sim).float(), torch.from_numpy(y_real).float())
 loss_2 = criterion(y_model, torch.from_numpy(y_real).float())
 y_model = y_model.detach().numpy()
