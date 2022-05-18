@@ -1,11 +1,13 @@
 import numpy as np
 import pandas as pd
 import sklearn.preprocessing as preprocessing
-from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_regression
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class Net(nn.Module):
@@ -59,7 +61,7 @@ class CNN_1D(nn.Module):
         return x.view(-1, 1)
 
 
-df = pd.read_csv("Data/Clean_Data.csv")
+df = pd.read_csv("Data/Clean_Data_Full.csv")
 data = df.drop(columns=["split", "test"])
 print(df.head())
 print(data.shape[0])
@@ -67,13 +69,25 @@ print(df.columns)
 
 (X_train, y_train, y_train_sim), (X_val, y_val, y_val_sim), (X_test, y_test, y_test_sim) = \
     [(x.drop(columns=["E_real", "Ecell", "time"]), x["E_real"], x["Ecell"]) for _, x in data.groupby(df['split'])]
+
+X_train = df[df["test"] != 302]
+y_train = X_train["E_real"]
+y_train_sim = X_train["Ecell"]
+X_train = X_train.drop(columns=["E_real", "Ecell", "time", "split", "test"])
+
+X_test = df[df["test"] == 302]
+y_test = X_test["E_real"]
+y_test_sim = X_test["Ecell"]
+X_test = X_test.drop(columns=["E_real", "Ecell", "time", "split", "test"])
 print(X_train.head())
 print(X_val.head())
 print(X_test.head())
 
 proc_X = preprocessing.StandardScaler().fit(X_train)
-k_best = SelectKBest(f_regression, k=30).fit(proc_X.transform(X_train), y_train) # 30/5
+k = X_train.shape[1]
+k_best = SelectKBest(mutual_info_regression, k=k).fit(proc_X.transform(X_train), y_train) # 30/5
 print(k_best.get_feature_names_out(X_train.columns))
+print(k_best.scores_)
 
 X_train_norm = proc_X.transform(X_train)
 X_train_norm = k_best.transform(X_train_norm)
@@ -84,8 +98,8 @@ X_test_norm = k_best.transform(X_test_norm)
 
 # print(np.max(X_train_norm, axis=0), np.min(X_train_norm, axis=0))
 
-model = Net(X_train_norm.shape[1], 128, 1)
-#model = LSTM(X_train_norm.shape[1], 128, 1)
+model = Net(X_train_norm.shape[1], 64, 1)
+#model = LSTM(X_train_norm.shape[1], 64, 1)
 #model = CNN_1D(X_train_norm.shape[1], 128)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -96,8 +110,9 @@ for epoch in range(1000):
     y_pred = model(torch.from_numpy(X_train_norm).float())
 
     # Compute and print loss
-    loss = criterion(y_pred, torch.from_numpy(y_train.values.reshape(-1, 1)).float() - torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float())
-    print(epoch, loss.item())
+    loss = criterion(y_pred, torch.from_numpy(y_train.values.reshape(-1, 1)).float())# - torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float())
+    if epoch % 100 == 0:
+        print(epoch, loss.item())
 
     # Zero gradients, perform a backward pass, and update the weights.
     optimizer.zero_grad()
@@ -106,17 +121,20 @@ for epoch in range(1000):
 
 y_sim = y_test_sim.values.reshape(-1, 1)
 y_real = y_test.values.reshape(-1, 1)
-y_model = model(torch.from_numpy(X_test_norm).float()).detach().numpy() + torch.from_numpy(y_test_sim.values.reshape(-1, 1)).float().detach().numpy()
-#y_model = model(torch.from_numpy(X_train_norm.reshape(X_train_norm.shape[0], 1, X_train_norm.shape[1])).float()).detach().numpy() + torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float().detach().numpy()
+y_model = model(torch.from_numpy(X_test_norm).float()) #+ torch.from_numpy(y_test_sim.values.reshape(-1, 1)).float()
+#y_model = model(torch.from_numpy(X_test_norm.reshape(X_test_norm.shape[0], 1, X_test_norm.shape[1])).float())# + torch.from_numpy(y_train_sim.values.reshape(-1, 1)).float()
 loss_1 = criterion(torch.from_numpy(y_sim).float(), torch.from_numpy(y_real).float())
 loss_2 = criterion(y_model, torch.from_numpy(y_real).float())
+y_model = y_model.detach().numpy()
 print(loss_1.item())
 print(loss_2.item())
 
-plt.plot(y_sim, label="Simulated")
-plt.plot(y_model, label="Model")
-plt.plot(y_real, label="Real")
+plt.plot(y_real, label="Real", color="black")
+plt.plot(y_sim, label="P2D Model", color="grey")
+plt.plot(y_model, label="ML Model", color="red")
+plt.title("Feature selection")
 plt.legend()
+plt.grid("on")
 plt.show()
 
 # Sample change
