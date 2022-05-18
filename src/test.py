@@ -9,7 +9,7 @@ from torch.autograd import Variable
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
+# Merge
 class Net(nn.Module):
     def __init__(self, input, H, output):
         super(Net, self).__init__()
