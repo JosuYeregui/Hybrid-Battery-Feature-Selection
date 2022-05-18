@@ -137,6 +137,6 @@ plt.legend()
 plt.grid("on")
 plt.show()
 
-# Sample change
+
 # X_train.hist()
 # plt.show()
