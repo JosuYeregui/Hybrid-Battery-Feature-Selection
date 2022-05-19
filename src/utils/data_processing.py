@@ -79,31 +79,32 @@ def apply_filter_fs(X_train, X_val, X_test, y_train, k=5, fitted_fs=None,
     return X_train, X_val, X_test, fs
 
 
-def data_loader_creation(X, y, device, batch_size=32, shuffle=True, model_type='fnn'):
+def data_loader_creation(X, y, device, batch_size=32, shuffle=True, model_type='fnn', splits=None):
     """
     Creates a data loader for the given data.
     """
     if model_type == 'fnn':
         # Create dataset
-        dataset = TensorDataset(torch.from_numpy(X).float().to(device), torch.from_numpy(y).float().to(device))
+        dataset = TensorDataset(torch.from_numpy(X).float().to(device),
+                                torch.from_numpy(y.values.reshape(-1, 1)).float().to(device))
         # Create data loader
         data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle)
     elif model_type == 'lstm':
+        if splits is None:
+            raise ValueError("Splits must be provided for LSTM.")
+        # Create dataset
+        dataset = TensorDataset(torch.from_numpy(X.reshape(1, *X.shape)).float().to(device),
+                                torch.from_numpy(y.values.reshape(-1, 1)).float().to(device))
         # Create data loader
-        data_loader = DataLoader(
-            dataset=TensorDataset(torch.from_numpy(X).float().to(device),
-                                  torch.from_numpy(y).float().to(device)),
-            batch_size=batch_size,
-            shuffle=shuffle
-        )
+        data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
     elif model_type == 'cnn':
+        if splits is None:
+            raise ValueError("Splits must be provided for CNN.")
+        # Create dataset
+        dataset = TensorDataset(torch.from_numpy(X).float().to(device),
+                                torch.from_numpy(y.values.reshape(-1, 1)).float().to(device))
         # Create data loader
-        data_loader = DataLoader(
-            dataset=TensorDataset(torch.from_numpy(X).float().to(device),
-                                  torch.from_numpy(y).float().to(device)),
-            batch_size=batch_size,
-            shuffle=shuffle
-        )
+        data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
     else:
         raise ValueError("Invalid model type")
 
@@ -122,7 +123,10 @@ if __name__ == "__main__":
     # Apply feature selection
     print("Applying feature selection")
     X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train, X_val, X_test, y_train, k=5, comp_features=comp_feat)
-    print("Feature selection done")
-    X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train, X_val, X_test, y_train,
-                                                          fitted_fs=fs, k=10, comp_features=comp_feat)
-    print("Feature selection done")
+    # print("Feature selection done")
+    # X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train, X_val, X_test, y_train,
+    #                                                       fitted_fs=fs, k=10, comp_features=comp_feat)
+    # print("Feature selection done")
+
+    data_load_train = data_loader_creation(X_train_tr, y_train, device=torch.device("cpu"), model_type='cnn', splits=1)
+    print(data_load_train)

@@ -59,6 +59,7 @@ class CNN_1D(nn.Module):
         self.conv3 = nn.Conv1d(hidden_size, 1, kernel_size, padding="same")
 
     def forward(self, x):
+        x = x.transpose(1, 2)
         x = torch.relu(self.conv1(x))
         x = torch.relu(self.conv2(x))
         x = self.conv3(x)
