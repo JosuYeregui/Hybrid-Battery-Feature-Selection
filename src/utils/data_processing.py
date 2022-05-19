@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import sklearn.preprocessing as preprocessing
 from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_regression
+import torch
+from torch.utils.data import TensorDataset, DataLoader
 
 
 def preprocess_data(df, split_mode='curves'):
@@ -75,6 +77,38 @@ def apply_filter_fs(X_train, X_val, X_test, y_train, k=5, fitted_fs=None,
     X_test = X_test[:, fs_indexes]
     # Return transformed data
     return X_train, X_val, X_test, fs
+
+
+def data_loader_creation(X, y, device, batch_size=32, shuffle=True, model_type='fnn'):
+    """
+    Creates a data loader for the given data.
+    """
+    if model_type == 'fnn':
+        # Create dataset
+        dataset = TensorDataset(torch.from_numpy(X).float().to(device), torch.from_numpy(y).float().to(device))
+        # Create data loader
+        data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle)
+    elif model_type == 'lstm':
+        # Create data loader
+        data_loader = DataLoader(
+            dataset=TensorDataset(torch.from_numpy(X).float().to(device),
+                                  torch.from_numpy(y).float().to(device)),
+            batch_size=batch_size,
+            shuffle=shuffle
+        )
+    elif model_type == 'cnn':
+        # Create data loader
+        data_loader = DataLoader(
+            dataset=TensorDataset(torch.from_numpy(X).float().to(device),
+                                  torch.from_numpy(y).float().to(device)),
+            batch_size=batch_size,
+            shuffle=shuffle
+        )
+    else:
+        raise ValueError("Invalid model type")
+
+    # Return data loader
+    return data_loader
 
 
 # For function testing

@@ -4,6 +4,9 @@ from torch.autograd import Variable
 
 
 class FFNN(nn.Module):
+    """
+    Feed-forward neural network
+    """
     def __init__(self, input, H, output):
         super(FFNN, self).__init__()
         self.linear1 = nn.Linear(input, H)
@@ -18,6 +21,9 @@ class FFNN(nn.Module):
 
 
 class LSTM(nn.Module):
+    """
+    LSTM model
+    """
     def __init__(self, input_size, hidden_size, num_layers):
         super(LSTM, self).__init__()
 
@@ -43,6 +49,9 @@ class LSTM(nn.Module):
 
 
 class CNN_1D(nn.Module):
+    """
+    1D convolutional neural network
+    """
     def __init__(self, input_size, hidden_size, kernel_size=5):
         super(CNN_1D, self).__init__()
         self.conv1 = nn.Conv1d(input_size, hidden_size, kernel_size, padding="same")
