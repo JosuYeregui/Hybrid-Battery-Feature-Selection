@@ -4,7 +4,7 @@ import sklearn.preprocessing as preprocessing
 from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_regression
 
 
-def preprocess_data(df, device, split_mode='curves', k=5):
+def preprocess_data(df, split_mode='curves'):
     """
     Processes the dataframe to remove unnecessary columns and
     apply preprocessing techniques.
@@ -34,7 +34,7 @@ def preprocess_data(df, device, split_mode='curves', k=5):
         X_test = X_test.drop(columns=["E_real", "Ecell", "time", "split", "test"])
     else:
         raise ValueError("Invalid split mode")
-
+    # Get feature column names
     x_feats = X_train.columns
 
     # Preprocessing phase
@@ -61,21 +61,33 @@ def apply_filter_fs(X_train, X_val, X_test, y_train, k=5, fitted_fs=None,
         fs.k = k
     elif comp_features is not None:
         k -= len(comp_features)
-        fs = SelectKBest(meas_func, k=k).fit(np.delete(X_train, comp_features, axis=1), y_train)
+        X_train_empt = X_train.copy()
+        X_train_empt[:, comp_features] = 0  # Column to 0 to ensure that the features are not selected
+        fs = SelectKBest(meas_func, k=k).fit(X_train_empt, y_train)
     else:
         fs = SelectKBest(meas_func, k=k).fit(X_train, y_train)
     # Build mask
     fs_indexes = fs.get_support(indices=True)
     fs_indexes = np.append(fs_indexes, comp_features) if comp_features is not None else fs_indexes
-    print("Selected features:", fs_indexes)
+    # Transform data
+    X_train = X_train[:, fs_indexes]
+    X_val = X_val[:, fs_indexes]
+    X_test = X_test[:, fs_indexes]
+    # Return transformed data
+    return X_train, X_val, X_test, fs
 
 
 # For function testing
 if __name__ == "__main__":
     df = pd.read_csv("../Data/Clean_Data_Full.csv")
     (X_train, y_train, y_train_sim), (X_val, y_val, y_val_sim), (X_test, y_test, y_test_sim), features = \
-        preprocess_data(df, device="cpu", split_mode="curves", k=5)
+        preprocess_data(df, split_mode="curves")
 
     comp_feat = [features.get_loc("current")]
     # Apply feature selection
-    apply_filter_fs(X_train, X_val, X_test, y_train, k=5, comp_features=comp_feat)
+    print("Applying feature selection")
+    X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train, X_val, X_test, y_train, k=5, comp_features=comp_feat)
+    print("Feature selection done")
+    X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train, X_val, X_test, y_train,
+                                                          fitted_fs=fs, k=10, comp_features=comp_feat)
+    print("Feature selection done")
