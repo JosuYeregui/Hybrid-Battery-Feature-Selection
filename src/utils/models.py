@@ -24,7 +24,7 @@ class LSTM(nn.Module):
     """
     LSTM model
     """
-    def __init__(self, input_size, hidden_size, num_layers):
+    def __init__(self, input_size, hidden_size, num_layers, device):
         super(LSTM, self).__init__()
 
         self.num_layers = num_layers
@@ -35,12 +35,13 @@ class LSTM(nn.Module):
                             num_layers=num_layers, batch_first=True)
 
         self.fc = nn.Linear(hidden_size, 1)
+        self.device = device
 
     def forward(self, x):
         h_0 = Variable(torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size))
+            self.num_layers, x.size(0), self.hidden_size)).to(self.device)
         c_0 = Variable(torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size))
+            self.num_layers, x.size(0), self.hidden_size)).to(self.device)
         # Propagate input through LSTM
         ula, (h_out, _) = self.lstm(x, (h_0, c_0))
         h_out = h_out.view(-1, self.hidden_size)
