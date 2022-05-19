@@ -84,6 +84,7 @@ if __name__ == "__main__":
         preprocess_data(df, split_mode="curves")
 
     comp_feat = [features.get_loc("current")]
+    # Execution time check
     # Apply feature selection
     print("Applying feature selection")
     X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train, X_val, X_test, y_train, k=5, comp_features=comp_feat)
