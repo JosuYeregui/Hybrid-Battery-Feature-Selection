@@ -49,7 +49,7 @@ def main():
     print("Testing model...")
     y_pred, epoch_loss = model_evaluation(model, data_load_test, MAPE, device=device)
 
-    np.save("./Results/y_pred_" + model_name + ".npy", y_pred)
+    # np.save("./Results/y_pred_" + model_name + ".npy", y_pred)
 
     # Plot training history
     plot_loss(history)
@@ -137,6 +137,6 @@ def temp_visualization():
     plt.show()
 
 if __name__ == "__main__":
-    #main()
-    temp_visualization()
+    main()
+    #temp_visualization()
     print("Done!")
