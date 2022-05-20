@@ -44,9 +44,8 @@ class LSTM(nn.Module):
             self.num_layers, x.size(0), self.hidden_size)).to(self.device)
         # Propagate input through LSTM
         ula, (h_out, _) = self.lstm(x, (h_0, c_0))
-        h_out = h_out.view(-1, self.hidden_size)
-        out = self.fc(h_out)
-        return out
+        out = self.fc(ula)
+        return out.reshape(-1, 1)
 
 
 class CNN_1D(nn.Module):

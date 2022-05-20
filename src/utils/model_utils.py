@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch import optim
 import time
@@ -38,7 +39,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=1000, devic
             # Iterate over data.
             for inputs, labels in dataloaders[phase]:
                 inputs = inputs.to(device)
-                labels = labels.to(device)
+                labels = labels.reshape(-1, 1).to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -48,6 +49,7 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=1000, devic
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)
+                    #print(inputs.size(), outputs.size(), labels.size(), loss.item())
 
                     # backward + optimize only if in training phase
                     if phase == 'train':
@@ -55,9 +57,13 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=1000, devic
                         optimizer.step()
 
                 # statistics
-                running_loss += loss.item() * inputs.size(0)
+                if len(inputs.size()) == 3:
+                    running_loss += loss.item() * inputs.size(1)
+                else:
+                    running_loss += loss.item() * inputs.size(0)
 
-            epoch_loss = running_loss / len(dataloaders[phase].dataset)
+            epoch_loss = running_loss / dataloaders[phase].dataset.X.size(0)
+
             history[phase + '_loss'].append(epoch_loss)
             if (epoch + 1) % 100 == 0:
                 print('\t{} Loss: {:.4f}'.format(phase, epoch_loss))
@@ -88,6 +94,7 @@ def model_evaluation(model, dataloader, criterion, device='cpu'):
     print('Evaluating model on test set...')
     model.eval()
     running_loss = 0.0
+    y_pred = []
 
     # Iterate over data.
     for inputs, labels in dataloader:
@@ -100,14 +107,22 @@ def model_evaluation(model, dataloader, criterion, device='cpu'):
             outputs = model(inputs)
             loss = criterion(outputs, labels)
 
+        if len(y_pred) == 0:
+            y_pred = outputs.detach().cpu().numpy()
+        else:
+            y_pred = np.vstack((y_pred, outputs.detach().cpu().numpy()))
+
         # statistics
-        running_loss += loss.item() * inputs.size(0)
+        if len(inputs.size()) == 3:
+            running_loss += loss.item() * inputs.size(1)
+        else:
+            running_loss += loss.item() * inputs.size(0)
 
-    epoch_loss = running_loss / len(dataloader.dataset)
+    epoch_loss = running_loss / dataloader.dataset.X.size(0)
 
-    print('\tLoss: {:.4f}'.format(epoch_loss))
+    print('\tLoss: {:.4f}'.format(epoch_loss), end='\n\n')
 
-    return epoch_loss
+    return y_pred, epoch_loss
 
 
 def plot_loss(history):

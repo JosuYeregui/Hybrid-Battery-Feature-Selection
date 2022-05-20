@@ -134,3 +134,4 @@ dmypy.json
 *.dat
 *.json
 *.csv
+*.npy

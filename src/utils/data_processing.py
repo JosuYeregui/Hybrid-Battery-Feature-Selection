@@ -106,7 +106,7 @@ def data_loader_creation(X, y, batch_size=32, shuffle=True, model_type='fnn', sp
             raise ValueError("Splits must be provided for LSTM.")
         # Create dataset
         dataset = Timeseries_Dataset(torch.from_numpy(X).float(),
-                                     torch.from_numpy(y.values).float(), splits=splits)
+                                     torch.from_numpy(y.values.reshape(-1, 1)).float(), splits=splits)
         # Create data loader
         data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
     elif model_type == 'cnn':
@@ -114,7 +114,7 @@ def data_loader_creation(X, y, batch_size=32, shuffle=True, model_type='fnn', sp
             raise ValueError("Splits must be provided for CNN.")
         # Create dataset
         dataset = Timeseries_Dataset(torch.from_numpy(X).float(),
-                                     torch.from_numpy(y.values).float(), splits=splits)
+                                     torch.from_numpy(y.values.reshape(-1, 1)).float(), splits=splits)
         # Create data loader
         data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
     else:
@@ -138,6 +138,7 @@ class Tabular_Dataset(Dataset):
         """
         self.X = X
         self.y = y
+        self.dataset_type = 'tabular'
 
     def __len__(self):
         return self.X.size(0)
@@ -162,6 +163,7 @@ class Timeseries_Dataset(Dataset):
         self.y = y
         self.splits = splits
         self.split_labels = np.unique(splits)
+        self.dataset_type = 'timeseries'
 
     def __len__(self):
         return len(self.split_labels)
