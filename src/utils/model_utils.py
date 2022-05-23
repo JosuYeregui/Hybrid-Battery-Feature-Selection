@@ -1,12 +1,13 @@
 import numpy as np
-import torch
 from torch import optim
 import time
 import matplotlib.pyplot as plt
 from .models import *
+import copy
 
 
-def train_model(model, dataloaders, criterion, optimizer, num_epochs=1000, device='cpu'):
+def train_model(model, dataloaders, criterion, optimizer, num_epochs=1000, device='cpu', early_stopping=False,
+                patience=10):
     """
     Trains a model for a given number of epochs.
     :param model: PyTorch model to train.
@@ -15,15 +16,18 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=1000, devic
     :param optimizer: PyTorch optimizer.
     :param num_epochs: Number of epochs to train for.
     :param device: Device to train on.
+    :param early_stopping: Whether to use early stopping.
+    :param patience: Number of epochs to wait before early stopping.
     :return: Trained model.
     """
     since = time.time()
 
     best_loss = float('inf')
     history = {'train_loss': [], 'val_loss': []}
+    early = EarlyStopping(patience=patience)
 
     for epoch in range(num_epochs):
-        if (epoch + 1) % 100 == 0:
+        if (epoch + 1) % 10 == 0:
             print('Epoch {}/{}'.format(epoch+1, num_epochs))
             print('-' * 10)
 
@@ -49,7 +53,6 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=1000, devic
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)
-                    #print(inputs.size(), outputs.size(), labels.size(), loss.item())
 
                     # backward + optimize only if in training phase
                     if phase == 'train':
@@ -65,19 +68,31 @@ def train_model(model, dataloaders, criterion, optimizer, num_epochs=1000, devic
             epoch_loss = running_loss / dataloaders[phase].dataset.X.size(0)
 
             history[phase + '_loss'].append(epoch_loss)
-            if (epoch + 1) % 100 == 0:
+            if (epoch + 1) % 10 == 0:
                 print('\t{} Loss: {:.4f}'.format(phase, epoch_loss))
 
             # deep copy the model
-            if phase == 'val' and epoch_loss < best_loss:
-                best_loss = epoch_loss
+            if phase == 'val':
+                if early_stopping:
+                    early(epoch_loss, model)
+                    best_loss = early.best_score
+                else:
+                    if epoch_loss < best_loss:
+                        best_loss = epoch_loss
 
-        if (epoch + 1) % 100 == 0:
+        if early_stopping and early.early_stop:
+            print('Early stopping at epoch {}'.format(epoch))
+            break
+
+        if (epoch + 1) % 10 == 0:
             print()
 
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
-    print('Best val Acc: {:4f}'.format(best_loss), end='\n\n')
+    print('Best val Loss: {:4f}%'.format(best_loss), end='\n\n')
+
+    if early_stopping:
+        model = early.best_model
 
     return model, history
 
@@ -120,7 +135,7 @@ def model_evaluation(model, dataloader, criterion, device='cpu'):
 
     epoch_loss = running_loss / dataloader.dataset.X.size(0)
 
-    print('\tLoss: {:.4f}'.format(epoch_loss), end='\n\n')
+    print('\tLoss: {:.4f}%'.format(epoch_loss), end='\n\n')
 
     return y_pred, epoch_loss
 
@@ -152,6 +167,7 @@ def initialize_model(model_name, input_features, device='cpu', lr=0.001, weight_
     Initializes a model.
     :param model_name: Name of the model.
     :param input_features: Number of input features.
+    :param device: Device to train on.
     :param lr: Learning rate.
     :param weight_decay: Weight decay.
     :return: Model.
@@ -168,3 +184,30 @@ def initialize_model(model_name, input_features, device='cpu', lr=0.001, weight_
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
     return model, optimizer
+
+
+class EarlyStopping:
+    """
+    Implements early stopping.
+    """
+    def __init__(self, patience=5):
+        self.patience = patience
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.val_loss_min = np.Inf
+        self.best_model = None
+
+    def __call__(self, val_loss, model):
+        score = val_loss
+        if self.best_score is None:
+            self.best_score = score
+        elif score < self.best_score:
+            self.best_score = score
+            self.best_model = copy.deepcopy(model)
+            self.counter = 0
+        else:
+            self.counter += 1
+
+        if self.counter >= self.patience:
+            self.early_stop = True

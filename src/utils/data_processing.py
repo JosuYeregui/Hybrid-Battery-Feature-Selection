@@ -1,7 +1,6 @@
-import pandas as pd
 import numpy as np
 import sklearn.preprocessing as preprocessing
-from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_regression
+from sklearn.feature_selection import SelectKBest, mutual_info_regression
 import torch
 from torch.utils.data import Dataset, DataLoader
 
@@ -186,7 +185,8 @@ if __name__ == "__main__":
     # # Apply feature selection
     # print("Applying feature selection")
     # print(len(df["test"][(df["test"] != 302) | (df["test"] != 203)].values), X_train.shape[0])
-    # X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train, X_val, X_test, y_train, k=5, comp_features=comp_feat)
+    # X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train,
+    # X_val, X_test, y_train, k=5, comp_features=comp_feat)
     # # print(features[fs.get_support(indices=True)])
     # # print("Feature selection done")
     # # X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train, X_val, X_test, y_train,

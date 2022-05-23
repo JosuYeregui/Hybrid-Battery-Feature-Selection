@@ -1,17 +1,22 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+import pandas as pd
 from utils.data_processing import *
 from utils.model_utils import *
 
 
-def main():
+def model_training():
     """
     Main function for the application
     """
     # Set up the experiment
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model_name = "fnn"
+    model_name = "lstm"
+    store_path = "./results/"
+    store = True
+    early_stopping = True
+    k = 20
 
     # Load the data
     print("Loading data...")
@@ -26,7 +31,7 @@ def main():
     # Feature selection
     print("Feature selection...")
     comp_feat = [features.get_loc("current")]
-    X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train, X_val, X_test, y_train, k=20, comp_features=comp_feat)
+    X_train_tr, X_val_tr, X_test_tr, fs = apply_filter_fs(X_train, X_val, X_test, y_train, k=k, comp_features=comp_feat)
     print("\tFeatures selected:", features[fs.get_support(indices=True)].tolist(), end="\n\n")
 
     # Data loaders
@@ -43,19 +48,24 @@ def main():
     # Train the model
     print("Training model...")
     model, history = train_model(model, {'train': data_load_train, 'val': data_load_val},
-                                 MAPE, optimizer, device=device, num_epochs=1000)
+                                 MAPE, optimizer, device=device, num_epochs=1000, early_stopping=early_stopping,
+                                 patience=50)
 
     # Test the model
     print("Testing model...")
     y_pred, epoch_loss = model_evaluation(model, data_load_test, MAPE, device=device)
 
-    # np.save("./Results/y_pred_" + model_name + ".npy", y_pred)
+    # Save the model
+    if store:
+        print("Saving model...")
+        torch.save(model, store_path + model.__class__.__name__ + "_model_" + str(k) + "_features.pt")
+        print("\tModel saved.")
 
     # Plot training history
     plot_loss(history)
 
 
-def temp_visualization():
+def evaluation():
     # Load the data
     print("Loading data...")
     df = pd.read_csv("./Data/Clean_Data_Full.csv")
@@ -136,7 +146,8 @@ def temp_visualization():
     plt.grid("on")
     plt.show()
 
+
 if __name__ == "__main__":
-    main()
-    #temp_visualization()
+    model_training()
+    # temp_visualization()
     print("Done!")
