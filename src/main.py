@@ -13,11 +13,13 @@ def model_training():
     """
     # Set up the experiment
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model_name = "lstm"
+    model_name = "cnn"
     store_path = "./results/"
     store = True
     early_stopping = True
     k = 20
+    val_ids = [203]
+    test_ids = [302]
 
     # Load the data
     print("Loading data...")
@@ -27,7 +29,7 @@ def model_training():
     # Process the data
     print("Processing data...", end="\n\n")
     (X_train, y_train, y_train_sim), (X_val, y_val, y_val_sim), (X_test, y_test, y_test_sim), features = \
-        preprocess_data(df, split_mode="curves")
+        preprocess_data(df, split_mode="curves", val_ids=val_ids, test_ids=test_ids)
 
     # Feature selection
     print("Feature selection...")
@@ -37,11 +39,11 @@ def model_training():
 
     # Data loaders
     data_load_train = data_loader_creation(X_train_tr, y_train, model_type=model_name,
-                                           splits=df["test"][(df["test"] != 302) | (df["test"] != 203)].values)
+                                           splits=df["test"][~df["test"].isin([*val_ids, *test_ids])].values)
     data_load_val = data_loader_creation(X_val_tr, y_val, model_type=model_name,
-                                         splits=df["test"][df["test"] == 203].values, shuffle=False)
+                                         splits=df["test"][df["test"].isin(val_ids)].values, shuffle=False)
     data_load_test = data_loader_creation(X_test_tr, y_test, model_type=model_name,
-                                          splits=df["test"][df["test"] == 302].values, shuffle=False)
+                                          splits=df["test"][df["test"].isin(test_ids)].values, shuffle=False)
 
     # Model
     model, optimizer = initialize_model(model_name, X_train_tr.shape[1], device=device)
@@ -50,7 +52,7 @@ def model_training():
     print("Training model...")
     model, history = train_model(model, {'train': data_load_train, 'val': data_load_val},
                                  MAPE, optimizer, device=device, num_epochs=1000, early_stopping=early_stopping,
-                                 patience=50)
+                                 patience=200)
 
     # Test the model
     print("Testing model...")
@@ -59,7 +61,7 @@ def model_training():
     # Save the model and feature selection filter
     if store:
         print("Saving model...")
-        # pickle.dump(fs, open(store_path + "feature_selector_k_" + str(k) + ".pkl", "wb"))
+        pickle.dump(fs, open(store_path + "feature_selector_k_" + str(k) + ".pkl", "wb"))
         torch.save(model, store_path + model.__class__.__name__ + "_model_" + str(k) + "_features.pt")
         print("\tModel saved.")
 
@@ -70,6 +72,7 @@ def model_training():
 def evaluation_models():
     # Evaluation model parameters
     k = 20
+    test_ids = [302]
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Load the data
@@ -95,9 +98,9 @@ def evaluation_models():
 
     # Data loaders
     data_load_test_tab = data_loader_creation(X_test_tr, y_test, model_type="fnn",
-                                              splits=df["test"][df["test"] == 302].values, shuffle=False)
+                                              splits=df["test"][df["test"].isin(test_ids)].values, shuffle=False)
     data_load_test_time = data_loader_creation(X_test_tr, y_test, model_type="cnn",
-                                               splits=df["test"][df["test"] == 302].values, shuffle=False)
+                                               splits=df["test"][df["test"].isin(test_ids)].values, shuffle=False)
 
     # Model
     model_FNN = torch.load("./results/FFNN_model_" + str(k) + "_features.pt")
@@ -115,72 +118,28 @@ def evaluation_models():
     y_real = y_test.values.reshape(-1)
     y_pred_FNN = y_pred_FNN.reshape(-1)
     y_pred_CNN = y_pred_CNN.reshape(-1)
-    y_pred_LSTM = y_pred_LSTM.reshape(-1) + y_test_sim.values.reshape(-1)
+    y_pred_LSTM = y_pred_LSTM.reshape(-1)
+    t = df[df["test"] == 302]["time"]/3600
 
     # Plot the results
-    plt.plot(y_real, label="Real", color="black")
-    plt.plot(y_sim, label="P2D Model", color="grey")
-    plt.plot(y_pred_FNN, label="FNN Model", color="red")
-    plt.title("FNN with feature selection")
-    plt.legend()
-    plt.xlabel("Time")
-    plt.ylabel("Voltage")
-    plt.grid("on")
-    plt.show()
+    # Prediction curves
+    plot_curves(t, y_real, y_sim, y_pred_FNN, "FNN")
+    plot_curves(t, y_real, y_sim, y_pred_CNN, "CNN")
+    plot_curves(t, y_real, y_sim, y_pred_LSTM, "LSTM")
+    # CDF curves
+    iter_list = [("P2D Model", y_sim, "grey"), ("FNN Model", y_pred_FNN, "red"), ("CNN Model", y_pred_CNN, "blue"),
+                 ("LSTM Model", y_pred_LSTM, "green")]
+    cdf_dict = {"Reference": {"pdf": np.array([0, 0, 0.5]), "cdf": np.array([0, 1, 1]), "color": "black", "linestyle": "--"}}
+    for item in iter_list:
+        pdf = np.sort(np.abs(y_real - item[1]))
+        cdf = 1. * np.arange(len(pdf)) / (len(pdf) - 1)
 
-    plt.plot(y_real, label="Real", color="black")
-    plt.plot(y_sim, label="P2D Model", color="grey")
-    plt.plot(y_pred_LSTM, label="LSTM Model", color="red")
-    plt.title("LSTM with feature selection")
-    plt.legend()
-    plt.xlabel("Time")
-    plt.ylabel("Voltage")
-    plt.grid("on")
-    plt.show()
-
-    plt.plot(y_real, label="Real", color="black")
-    plt.plot(y_sim, label="P2D Model", color="grey")
-    plt.plot(y_pred_CNN, label="CNN Model", color="red")
-    plt.title("CNN with feature selection")
-    plt.legend()
-    plt.xlabel("Time")
-    plt.ylabel("Voltage")
-    plt.grid("on")
-    plt.show()
-
-    pdf_P2D = np.sort(-y_sim + y_real)
-    cdf_P2D = 1. * np.arange(len(pdf_P2D)) / (len(pdf_P2D) - 1)
-    pdf_FNN = np.sort(-y_pred_FNN + y_real)
-    cdf_FNN = 1. * np.arange(len(pdf_FNN)) / (len(pdf_FNN) - 1)
-    pdf_LSTM = np.sort(-y_pred_LSTM + y_real)
-    cdf_LSTM = 1. * np.arange(len(pdf_LSTM)) / (len(pdf_LSTM) - 1)
-    pdf_CNN = np.sort(-y_pred_CNN + y_real)
-    cdf_CNN = 1. * np.arange(len(pdf_CNN)) / (len(pdf_CNN) - 1)
-    plt.plot([-0.5, 0, 0.001, 0.5], [0, 0, 1, 1], label="Real", color="black")
-    plt.plot(pdf_P2D, cdf_P2D, label="P2D Model", color="grey")
-    plt.plot(pdf_FNN, cdf_FNN, label="FNN Model", color="red")
-    plt.plot(pdf_LSTM, cdf_LSTM, label="LSTM Model", color="cyan")
-    plt.plot(pdf_CNN, cdf_CNN, label="CNN Model", color="green")
-    plt.title("CDF of the error")
-    plt.legend()
-    plt.xlabel("Error")
-    plt.ylabel("CDF")
-    plt.grid("on")
-    plt.show()
-
-    plt.hist(pdf_P2D, bins=100, label="P2D Model", color="grey")
-    plt.hist(y_real - y_pred_LSTM, bins=100, label="LSTM Model", color="cyan")
-    plt.hist(y_real - y_pred_FNN, bins=100, label="FNN Model", color="red")
-    plt.hist(y_real - y_pred_CNN, bins=100, label="CNN Model", color="green")
-    plt.title("Histogram of the error")
-    plt.legend()
-    plt.xlabel("Error")
-    plt.ylabel("Frequency")
-    plt.grid("on")
-    plt.show()
+        cdf_dict[item[0]] = {"pdf": pdf, "cdf": cdf, "color": item[2], "linestyle": "-"}
+    plot_cdf(cdf_dict)
 
 
 if __name__ == "__main__":
-    # model_training()
+    plt.rcParams.update({'font.size': 10, 'font.family': 'sans-serif', 'font.sans-serif': 'Times New Roman'})
+    #model_training()
     evaluation_models()
     print("Done!")

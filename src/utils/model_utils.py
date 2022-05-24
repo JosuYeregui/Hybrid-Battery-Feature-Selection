@@ -140,67 +140,6 @@ def model_evaluation(model, dataloader, criterion, device='cpu'):
     return y_pred, epoch_loss
 
 
-def plot_loss(history):
-    """
-    Plots the training and validation loss.
-    :param history: Training and validation loss.
-    """
-    plt.plot(history['train_loss'], label='Training loss')
-    plt.plot(history['val_loss'], label='Validation loss')
-    plt.legend()
-    plt.grid()
-    plt.show()
-
-
-def plot_curves(y_real, y_sim, y_pred, model_name):
-    """
-    Plot the prediction against the real data and simulation data
-    """
-    plt.plot(y_real, label="Real", color="black")
-    plt.plot(y_sim, label="P2D Model", color="grey")
-    plt.plot(y_pred, label="Prediction", color="red")
-    plt.title(model_name)
-    plt.legend()
-    plt.xlabel("Time")
-    plt.ylabel("Voltage")
-    plt.grid("on")
-    plt.show()
-
-
-def MAPE(y_pred, y_true):
-    """
-    Calculates the mean absolute percentage error.
-    :param y_true: True values.
-    :param y_pred: Predicted values.
-    :return: Mean absolute percentage error.
-    """
-    return torch.mean(torch.abs((y_true - y_pred) / y_true)) * 100
-
-
-def initialize_model(model_name, input_features, device='cpu', lr=0.001, weight_decay=0.0001):
-    """
-    Initializes a model.
-    :param model_name: Name of the model.
-    :param input_features: Number of input features.
-    :param device: Device to train on.
-    :param lr: Learning rate.
-    :param weight_decay: Weight decay.
-    :return: Model.
-    """
-    if model_name == 'fnn':
-        model = FFNN(input_features, 128, 1).to(device)
-    elif model_name == 'cnn':
-        model = CNN_1D(input_features, 128).to(device)
-    elif model_name == 'lstm':
-        model = LSTM(input_features, 128, 1, device).to(device)
-    else:
-        raise ValueError('Model not recognized.')
-
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-
-    return model, optimizer
-
-
 class EarlyStopping:
     """
     Implements early stopping.
@@ -226,3 +165,77 @@ class EarlyStopping:
 
         if self.counter >= self.patience:
             self.early_stop = True
+
+
+def initialize_model(model_name, input_features, device='cpu', lr=0.001, weight_decay=0.0001):
+    """
+    Initializes a model.
+    :param model_name: Name of the model.
+    :param input_features: Number of input features.
+    :param device: Device to train on.
+    :param lr: Learning rate.
+    :param weight_decay: Weight decay.
+    :return: Model.
+    """
+    if model_name == 'fnn':
+        model = FFNN(input_features, 128, 1).to(device)
+    elif model_name == 'cnn':
+        model = CNN_1D(input_features, 256).to(device)
+    elif model_name == 'lstm':
+        model = LSTM(input_features, 128, 1, device).to(device)
+    else:
+        raise ValueError('Model not recognized.')
+
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+
+    return model, optimizer
+
+
+def MAPE(y_pred, y_true):
+    """
+    Calculates the mean absolute percentage error.
+    :param y_true: True values.
+    :param y_pred: Predicted values.
+    :return: Mean absolute percentage error.
+    """
+    return torch.mean(torch.abs((y_true - y_pred) / y_true)) * 100
+
+
+def plot_loss(history):
+    """
+    Plots the training and validation loss.
+    :param history: Training and validation loss.
+    """
+    plt.plot(history['train_loss'], label='Training loss')
+    plt.plot(history['val_loss'], label='Validation loss')
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+
+def plot_curves(t, y_real, y_sim, y_pred, model_name):
+    """
+    Plot the prediction against the real data and simulation data
+    """
+    plt.plot(t, y_real, label="Real", color="black")
+    plt.plot(t, y_sim, label="P2D Model", color="grey")
+    plt.plot(t, y_pred, label=model_name + " Prediction", color="firebrick")
+    plt.legend()
+    plt.xlabel("Time [h]", size=12)
+    plt.ylabel("Voltage [V]", size=12)
+    plt.grid("on", ls=":", lw=0.5)
+    plt.show()
+
+
+def plot_cdf(plot_dict):
+    """
+    Plot the CDF of the predictions.
+    :param plot_dict: Dictionary containing the CDF of the predictions.
+    """
+    for key, value in plot_dict.items():
+        plt.plot(value["pdf"]*1000, value["cdf"], label=key, color=value["color"], ls=value["linestyle"])
+    plt.legend()
+    plt.xlabel("Absolute Error [mV]")
+    plt.ylabel("CDF")
+    plt.grid("on")
+    plt.show()

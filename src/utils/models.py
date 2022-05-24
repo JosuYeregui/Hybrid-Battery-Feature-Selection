@@ -60,7 +60,7 @@ class CNN_1D(nn.Module):
     """
     1D convolutional neural network
     """
-    def __init__(self, input_size, hidden_size, kernel_size=5):
+    def __init__(self, input_size, hidden_size, kernel_size=3):
         super(CNN_1D, self).__init__()
         self.conv1 = nn.Conv1d(input_size, hidden_size, kernel_size, padding="same")
         self.dropout1 = nn.Dropout(p=0.2)

@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 
-def preprocess_data(df, split_mode='curves'):
+def preprocess_data(df, split_mode='curves', val_ids=None, test_ids=None):
     """
     Processes the dataframe to remove unnecessary columns and
     apply preprocessing techniques.
@@ -19,18 +19,22 @@ def preprocess_data(df, split_mode='curves'):
 
     elif split_mode == 'curves':
         # Split data into training, validation and test sets
+        if test_ids is None:
+            test_ids = [302]
+        if val_ids is None:
+            val_ids = [203]
         # Training set
-        X_train = df[(df["test"] != 302) | (df["test"] != 203)]
+        X_train = df[~df["test"].isin([*val_ids, *test_ids])]
         y_train = X_train["E_real"]
         y_train_sim = X_train["Ecell"]
         X_train = X_train.drop(columns=["E_real", "time", "split", "test"])
         # Validation set
-        X_val = df[df["test"] == 203]
+        X_val = df[df["test"].isin(val_ids)]
         y_val = X_val["E_real"]
         y_val_sim = X_val["Ecell"]
         X_val = X_val.drop(columns=["E_real", "time", "split", "test"])
         # Test set
-        X_test = df[df["test"] == 302]
+        X_test = df[df["test"].isin(test_ids)]
         y_test = X_test["E_real"]
         y_test_sim = X_test["Ecell"]
         X_test = X_test.drop(columns=["E_real", "time", "split", "test"])
