@@ -14,7 +14,7 @@ def preprocess_data(df, split_mode='curves'):
     if split_mode == 'sample':
         # Split dataframe into train, validation and test
         (X_train, y_train, y_train_sim), (X_val, y_val, y_val_sim), (X_test, y_test, y_test_sim) = \
-            [(x.drop(columns=["E_real", "Ecell", "time", "split", "test"]), x["E_real"], x["Ecell"])
+            [(x.drop(columns=["E_real", "time", "split", "test"]), x["E_real"], x["Ecell"])
              for _, x in df.groupby(df['split'])]
 
     elif split_mode == 'curves':
@@ -23,17 +23,17 @@ def preprocess_data(df, split_mode='curves'):
         X_train = df[(df["test"] != 302) | (df["test"] != 203)]
         y_train = X_train["E_real"]
         y_train_sim = X_train["Ecell"]
-        X_train = X_train.drop(columns=["E_real", "Ecell", "time", "split", "test"])
+        X_train = X_train.drop(columns=["E_real", "time", "split", "test"])
         # Validation set
         X_val = df[df["test"] == 203]
         y_val = X_val["E_real"]
         y_val_sim = X_val["Ecell"]
-        X_val = X_val.drop(columns=["E_real", "Ecell", "time", "split", "test"])
+        X_val = X_val.drop(columns=["E_real", "time", "split", "test"])
         # Test set
         X_test = df[df["test"] == 302]
         y_test = X_test["E_real"]
         y_test_sim = X_test["Ecell"]
-        X_test = X_test.drop(columns=["E_real", "Ecell", "time", "split", "test"])
+        X_test = X_test.drop(columns=["E_real", "time", "split", "test"])
 
     else:
         raise ValueError("Invalid split mode")
@@ -71,7 +71,7 @@ def apply_filter_fs(X_train, X_val, X_test, y_train, k=5, fitted_fs=None,
     # Define selector
     if fitted_fs is not None:
         fs = fitted_fs
-        fs.k = k
+        fs.k = k - len(comp_features)
     elif comp_features is not None:
         k -= len(comp_features)
         X_train_empt = X_train.copy()

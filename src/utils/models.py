@@ -48,6 +48,7 @@ class LSTM(nn.Module):
         c_0 = Variable(torch.zeros(
             self.num_layers, x.size(0), self.hidden_size)).to(self.device)
         # Propagate input through LSTM
+        self.lstm.flatten_parameters()
         ula, (h_out, _) = self.lstm(x, (h_0, c_0))
         out = self.fc1(ula)
         out = torch.relu(out)

@@ -152,6 +152,21 @@ def plot_loss(history):
     plt.show()
 
 
+def plot_curves(y_real, y_sim, y_pred, model_name):
+    """
+    Plot the prediction against the real data and simulation data
+    """
+    plt.plot(y_real, label="Real", color="black")
+    plt.plot(y_sim, label="P2D Model", color="grey")
+    plt.plot(y_pred, label="Prediction", color="red")
+    plt.title(model_name)
+    plt.legend()
+    plt.xlabel("Time")
+    plt.ylabel("Voltage")
+    plt.grid("on")
+    plt.show()
+
+
 def MAPE(y_pred, y_true):
     """
     Calculates the mean absolute percentage error.
@@ -173,11 +188,11 @@ def initialize_model(model_name, input_features, device='cpu', lr=0.001, weight_
     :return: Model.
     """
     if model_name == 'fnn':
-        model = FFNN(input_features, 64, 1).to(device)
+        model = FFNN(input_features, 128, 1).to(device)
     elif model_name == 'cnn':
         model = CNN_1D(input_features, 128).to(device)
     elif model_name == 'lstm':
-        model = LSTM(input_features, 64, 1, device).to(device)
+        model = LSTM(input_features, 128, 1, device).to(device)
     else:
         raise ValueError('Model not recognized.')
 
