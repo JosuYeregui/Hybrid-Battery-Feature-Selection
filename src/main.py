@@ -118,8 +118,6 @@ def evaluation_models():
     # CDF curves
     iter_list = [("P2D Model", y_sim, "black"), ("FNN Model", y_pred_FNN, "orangered"), ("CNN Model", y_pred_CNN, "royalblue"),
                  ("LSTM Model", y_pred_LSTM, "springgreen")]
-    # cdf_dict = {"Reference": {"pdf": np.array([0, 0, 0.5]), "cdf": np.array([0, 1, 1]),
-    #                           "color": "black", "linestyle": "--"}}
     cdf_dict = {}
     for item in iter_list:
         pdf = np.sort(np.abs(y_real - item[1]))
@@ -132,7 +130,7 @@ def evaluation_models():
 def evaluation_features(k_list, model_type="FFNN"):
     # Evaluation model parameters
     test_ids = [302]
-    colors = ["orangered", "royalblue", "springgreen", "fuchsia", "black", "gray"]
+    colors = ["orangered", "royalblue", "springgreen", "fuchsia", "gold", "gray"]
     cdf_dict = {}
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -170,13 +168,17 @@ def evaluation_features(k_list, model_type="FFNN"):
         y_sim = y_test_sim.values.reshape(-1)
         y_real = y_test.values.reshape(-1)
         y_pred = y_pred.reshape(-1)
-        t = df[df["test"] == 302]["time"]/3600
 
         # CDF curves
         pdf = np.sort(np.abs(y_real - y_pred))
         cdf = 1. * np.arange(len(pdf)) / (len(pdf) - 1)
         # add to dictionary
         cdf_dict["k = " + str(k)] = {"pdf": pdf, "cdf": cdf, "color": c, "linestyle": "-"}
+
+    # CDF curves
+    pdf = np.sort(np.abs(y_real - y_sim))
+    cdf = 1. * np.arange(len(pdf)) / (len(pdf) - 1)
+    cdf_dict["P2D"] = {"pdf": pdf, "cdf": cdf, "color": "Black", "linestyle": "-"}
     plot_cdf(cdf_dict)
 
 
@@ -186,7 +188,7 @@ if __name__ == "__main__":
     # for k in k_list:
     #     print("Training LSTM model with k =", k)
     #     model_training(k=k, model_name="lstm")
-    # evaluation_models()
+    evaluation_models()
     k_list = [5, 10, 20, 50, 100, 200]
     evaluation_features(k_list, "LSTM")
     print("Done!")
