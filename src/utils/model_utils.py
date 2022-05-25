@@ -238,4 +238,6 @@ def plot_cdf(plot_dict):
     plt.xlabel("Absolute Error [mV]")
     plt.ylabel("CDF")
     plt.grid("on")
+    plt.xlim(0, 250)
+    plt.ylim(0, 1)
     plt.show()
