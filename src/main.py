@@ -12,7 +12,7 @@ def model_training(model_name='lstm', k=20, early_stopping=True, store=True, sto
 
     # Load the data
     print("Loading data...")
-    df = pd.read_csv("./Data/Clean_Data_Full.csv")
+    df = pd.read_csv("./Data/Clean_Data_Full_SOC.csv")
     print("\tData loaded, shape:", df.shape, end="\n\n")
 
     # Process the data
@@ -40,22 +40,28 @@ def model_training(model_name='lstm', k=20, early_stopping=True, store=True, sto
     # Train the model
     print("Training model...")
     model, history = train_model(model, {'train': data_load_train, 'val': data_load_val},
-                                 MAPE, optimizer, device=device, num_epochs=1000, early_stopping=early_stopping,
+                                 RMSE, optimizer, device=device, num_epochs=1000, early_stopping=early_stopping,
                                  patience=200)
 
     # Test the model
     print("Testing model...")
-    y_pred, epoch_loss = model_evaluation(model, data_load_test, MAPE, device=device)
+    y_pred, epoch_loss = model_evaluation(model, data_load_test, RMSE, device=device)
 
     # Save the model and feature selection filter
     if store:
         print("Saving model...")
-        # pickle.dump(fs, open(store_path + "feature_selector_k_" + str(k) + ".pkl", "wb"))
+        pickle.dump(fs, open(store_path + "feature_selector_k_" + str(k) + ".pkl", "wb"))
         torch.save(model, store_path + model.__class__.__name__ + "_model_" + str(k) + "_features.pt")
         print("\tModel saved.")
 
     # Plot training history
-    # plot_loss(history)
+    plot_loss(history)
+
+    y_sim = y_test_sim.values.reshape(-1)
+    y_real = y_test.values.reshape(-1)
+    y_pred = y_pred.reshape(-1)
+    t = df[df["test"] == 302]["time"] / 3600
+    plot_curves(t, y_real, y_sim, y_pred, "ML", y_label="SOC")
 
 
 def evaluation_models():
@@ -66,7 +72,7 @@ def evaluation_models():
 
     # Load the data
     print("Loading data...")
-    df = pd.read_csv("./Data/Clean_Data_Full.csv")
+    df = pd.read_csv("./Data/Clean_Data_Full_SOC.csv")
     print("\tData loaded, shape:", df.shape, end="\n\n")
 
     # Process the data
@@ -98,9 +104,9 @@ def evaluation_models():
 
     # Test the model
     print("Testing model...")
-    y_pred_FNN, epoch_loss_FNN = model_evaluation(model_FNN, data_load_test_tab, MAPE, device=device)
-    y_pred_CNN, epoch_loss_CNN = model_evaluation(model_CNN, data_load_test_time, MAPE, device=device)
-    y_pred_LSTM, epoch_loss_LSTM = model_evaluation(model_LSTM, data_load_test_time, MAPE, device=device)
+    y_pred_FNN, epoch_loss_FNN = model_evaluation(model_FNN, data_load_test_tab, RMSE, device=device)
+    y_pred_CNN, epoch_loss_CNN = model_evaluation(model_CNN, data_load_test_time, RMSE, device=device)
+    y_pred_LSTM, epoch_loss_LSTM = model_evaluation(model_LSTM, data_load_test_time, RMSE, device=device)
 
     # Format the predictions
     y_sim = y_test_sim.values.reshape(-1)
@@ -112,9 +118,9 @@ def evaluation_models():
 
     # Plot the results
     # Prediction curves
-    plot_curves(t, y_real, y_sim, y_pred_FNN, "FNN")
-    plot_curves(t, y_real, y_sim, y_pred_CNN, "CNN")
-    plot_curves(t, y_real, y_sim, y_pred_LSTM, "LSTM")
+    plot_curves(t, y_real, y_sim, y_pred_FNN, "FNN", y_label="SOC")
+    plot_curves(t, y_real, y_sim, y_pred_CNN, "CNN", y_label="SOC")
+    plot_curves(t, y_real, y_sim, y_pred_LSTM, "LSTM", y_label="SOC")
     # CDF curves
     iter_list = [("P2D Model", y_sim, "black"), ("FNN Model", y_pred_FNN, "orangered"), ("CNN Model", y_pred_CNN, "royalblue"),
                  ("LSTM Model", y_pred_LSTM, "springgreen")]
@@ -124,7 +130,7 @@ def evaluation_models():
         cdf = 1. * np.arange(len(pdf)) / (len(pdf) - 1)
         # add to dictionary
         cdf_dict[item[0]] = {"pdf": pdf, "cdf": cdf, "color": item[2], "linestyle": "-"}
-    plot_cdf(cdf_dict)
+    plot_cdf(cdf_dict, xlabel="Absolute error (%)", ylabel="CDF", scaling=100)
 
 
 def evaluation_features(k_list, model_type="FFNN"):
@@ -136,7 +142,7 @@ def evaluation_features(k_list, model_type="FFNN"):
 
     # Load the data
     print("Loading data...")
-    df = pd.read_csv("./Data/Clean_Data_Full.csv")
+    df = pd.read_csv("./Data/Clean_Data_Full_SOC.csv")
     print("\tData loaded, shape:", df.shape, end="\n\n")
 
     # Process the data
@@ -184,11 +190,12 @@ def evaluation_features(k_list, model_type="FFNN"):
 
 if __name__ == "__main__":
     plt.rcParams.update({'font.size': 10, 'font.family': 'sans-serif', 'font.sans-serif': 'Times New Roman'})
+    # model_training(k=20, model_name="lstm", store=True)
     # k_list = [5, 10, 50, 100, 200]
     # for k in k_list:
     #     print("Training LSTM model with k =", k)
     #     model_training(k=k, model_name="lstm")
     evaluation_models()
-    k_list = [5, 10, 20, 50, 100, 200]
-    evaluation_features(k_list, "LSTM")
+    # k_list = [5, 10, 20, 50, 100, 200]
+    # evaluation_features(k_list, "LSTM")
     print("Done!")

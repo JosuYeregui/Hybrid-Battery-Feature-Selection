@@ -14,7 +14,7 @@ def preprocess_data(df, split_mode='curves', val_ids=None, test_ids=None):
     if split_mode == 'sample':
         # Split dataframe into train, validation and test
         (X_train, y_train, y_train_sim), (X_val, y_val, y_val_sim), (X_test, y_test, y_test_sim) = \
-            [(x.drop(columns=["E_real", "time", "split", "test"]), x["E_real"], x["Ecell"])
+            [(x.drop(columns=["SOC_real", "time", "split", "test"]), x["SOC_real"], x["SOCCell"])
              for _, x in df.groupby(df['split'])]
 
     elif split_mode == 'curves':
@@ -25,19 +25,19 @@ def preprocess_data(df, split_mode='curves', val_ids=None, test_ids=None):
             val_ids = [203]
         # Training set
         X_train = df[~df["test"].isin([*val_ids, *test_ids])]
-        y_train = X_train["E_real"]
-        y_train_sim = X_train["Ecell"]
-        X_train = X_train.drop(columns=["E_real", "time", "split", "test"])
+        y_train = X_train["SOC_real"]
+        y_train_sim = X_train["SOCCell"]
+        X_train = X_train.drop(columns=["SOC_real", "time", "split", "test"])
         # Validation set
         X_val = df[df["test"].isin(val_ids)]
-        y_val = X_val["E_real"]
-        y_val_sim = X_val["Ecell"]
-        X_val = X_val.drop(columns=["E_real", "time", "split", "test"])
+        y_val = X_val["SOC_real"]
+        y_val_sim = X_val["SOCCell"]
+        X_val = X_val.drop(columns=["SOC_real", "time", "split", "test"])
         # Test set
         X_test = df[df["test"].isin(test_ids)]
-        y_test = X_test["E_real"]
-        y_test_sim = X_test["Ecell"]
-        X_test = X_test.drop(columns=["E_real", "time", "split", "test"])
+        y_test = X_test["SOC_real"]
+        y_test_sim = X_test["SOCCell"]
+        X_test = X_test.drop(columns=["SOC_real", "time", "split", "test"])
 
     else:
         raise ValueError("Invalid split mode")

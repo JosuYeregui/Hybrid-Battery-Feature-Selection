@@ -201,6 +201,16 @@ def MAPE(y_pred, y_true):
     return torch.mean(torch.abs((y_true - y_pred) / y_true)) * 100
 
 
+def RMSE(y_pred, y_true):
+    """
+    Calculates the root mean squared error.
+    :param y_true: True values.
+    :param y_pred: Predicted values.
+    :return: Root mean squared error.
+    """
+    return torch.sqrt(torch.mean((y_true - y_pred) ** 2))
+
+
 def plot_loss(history):
     """
     Plots the training and validation loss.
@@ -213,7 +223,7 @@ def plot_loss(history):
     plt.show()
 
 
-def plot_curves(t, y_real, y_sim, y_pred, model_name):
+def plot_curves(t, y_real, y_sim, y_pred, model_name, x_label="Time [h]", y_label="Voltage [V]"):
     """
     Plot the prediction against the real data and simulation data
     """
@@ -221,23 +231,26 @@ def plot_curves(t, y_real, y_sim, y_pred, model_name):
     plt.plot(t, y_sim, label="P2D Model", color="grey")
     plt.plot(t, y_pred, label=model_name + " Prediction", color="firebrick")
     plt.legend()
-    plt.xlabel("Time [h]", size=12)
-    plt.ylabel("Voltage [V]", size=12)
+    plt.xlabel(x_label, size=12)
+    plt.ylabel(y_label, size=12)
     plt.grid("on", ls=":", lw=0.5)
     plt.show()
 
 
-def plot_cdf(plot_dict):
+def plot_cdf(plot_dict, xlabel="Absolute Error [mV]", ylabel="CDF", scaling=1000):
     """
     Plot the CDF of the predictions.
     :param plot_dict: Dictionary containing the CDF of the predictions.
+    :param xlabel: X-axis label.
+    :param ylabel: Y-axis label.
+    :param scaling: Scaling factor.
     """
     for key, value in plot_dict.items():
-        plt.plot(value["pdf"]*1000, value["cdf"], label=key, color=value["color"], ls=value["linestyle"])
+        plt.plot(value["pdf"]*scaling, value["cdf"], label=key, color=value["color"], ls=value["linestyle"])
     plt.legend()
-    plt.xlabel("Absolute Error [mV]")
-    plt.ylabel("CDF")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.grid("on")
-    plt.xlim(0, 250)
+    plt.xlim(0, 0.25*scaling)
     plt.ylim(0, 1)
     plt.show()
