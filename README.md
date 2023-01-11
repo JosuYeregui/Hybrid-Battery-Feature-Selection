@@ -17,7 +17,7 @@ This repository contains an analysis of different machine learning models using 
 2. Navigate to the root folder of the repository.
 3. Run the main script with the desired model name (lstm, gru, rnn, or mlp), k value for feature selection, early stopping option and store option to store the model and feature selection filter.
 
-python main.py --model_name lstm --k 20 --early_stopping True --store True
+`python main.py --model_name lstm --k 20 --early_stopping True --store True`
 
 
 ## Usage
