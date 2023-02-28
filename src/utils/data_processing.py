@@ -1,6 +1,6 @@
 import numpy as np
 import sklearn.preprocessing as preprocessing
-from sklearn.feature_selection import SelectKBest, mutual_info_regression
+from sklearn.feature_selection import SelectKBest, mutual_info_regression, f_regression
 import torch
 from torch.utils.data import Dataset, DataLoader
 
@@ -20,24 +20,34 @@ def preprocess_data(df, split_mode='curves', val_ids=None, test_ids=None):
     elif split_mode == 'curves':
         # Split data into training, validation and test sets
         if test_ids is None:
-            test_ids = [302]
+            test_ids = list(range(100, 133))
         if val_ids is None:
-            val_ids = [203]
+            val_ids = list(range(68, 99))
         # Training set
-        X_train = df[~df["test"].isin([*val_ids, *test_ids])]
-        y_train = X_train["SOC_real"]
-        y_train_sim = X_train["SOCCell"]
-        X_train = X_train.drop(columns=["SOC_real", "time", "split", "test"])
+        X_train = df[~df["step"].isin([*val_ids, *test_ids])]
+        y_train = X_train["SOC_Real"]
+        y_train_sim = X_train["SOC_cell"]/100.
+        y_train_FOM = X_train["SOC_FOM"]
+        # X_train = X_train.drop(columns=["t_sim", "step", "dt_sim_ROM", "T", "SOC_Real"])
+        # X_train = X_train.drop(columns=["V_real", "t_sim", "step", "dt_sim_ROM", "T", "SOC_Real"])
+        X_train = X_train.drop(columns=["t_sim", "step", "dt_sim_ROM", "SOC_Real", "V_FOM", "SOC_FOM"])
         # Validation set
-        X_val = df[df["test"].isin(val_ids)]
-        y_val = X_val["SOC_real"]
-        y_val_sim = X_val["SOCCell"]
-        X_val = X_val.drop(columns=["SOC_real", "time", "split", "test"])
+        X_val = df[df["step"].isin(val_ids)]
+        y_val = X_val["SOC_Real"]
+        y_val_sim = X_val["SOC_cell"]/100.
+        y_val_FOM = X_val["SOC_FOM"]
+        # X_val = X_val.drop(columns=["t_sim", "step", "dt_sim_ROM", "T", "SOC_Real"])
+        # X_val = X_val.drop(columns=["V_real", "t_sim", "step", "dt_sim_ROM", "T", "SOC_Real"])
+        X_val = X_val.drop(columns=["t_sim", "step", "dt_sim_ROM", "SOC_Real", "V_FOM", "SOC_FOM"])
         # Test set
-        X_test = df[df["test"].isin(test_ids)]
-        y_test = X_test["SOC_real"]
-        y_test_sim = X_test["SOCCell"]
-        X_test = X_test.drop(columns=["SOC_real", "time", "split", "test"])
+        X_test = df[df["step"].isin(test_ids)]
+        y_test = X_test["SOC_Real"]
+        y_test_sim = X_test["SOC_cell"]/100.  # SOC_cell
+        y_test_FOM = X_test["SOC_FOM"]
+        # X_test = X_test.drop(columns=["t_sim", "step", "dt_sim_ROM", "T", "SOC_Real"])
+        # X_test = X_test.drop(columns=["V_real", "t_sim", "step", "dt_sim_ROM", "T", "SOC_Real"])
+        X_test = X_test.drop(columns=["t_sim", "step", "dt_sim_ROM", "SOC_Real", "V_FOM", "SOC_FOM"])
+
 
     else:
         raise ValueError("Invalid split mode")
@@ -53,11 +63,11 @@ def preprocess_data(df, split_mode='curves', val_ids=None, test_ids=None):
     X_val = scaler.transform(X_val)
     X_test = scaler.transform(X_test)
 
-    return (X_train, y_train, y_train_sim), (X_val, y_val, y_val_sim), (X_test, y_test, y_test_sim), x_feats
+    return (X_train, y_train, y_train_sim, y_train_FOM), (X_val, y_val, y_val_sim, y_val_FOM), (X_test, y_test, y_test_sim, y_test_FOM), x_feats
 
 
 def apply_filter_fs(X_train, X_val, X_test, y_train, k=5, fitted_fs=None,
-                    meas_func=mutual_info_regression, comp_features=None):
+                    meas_func=f_regression, comp_features=None):
     """
     Applies feature selection to the data and returns the k_best.
     :param X_train: Training data
@@ -70,22 +80,26 @@ def apply_filter_fs(X_train, X_val, X_test, y_train, k=5, fitted_fs=None,
     :param comp_features: Features to compare
     :return: k_best features and feature selection object
     """
-    # Feature selection
-    k = k if k < X_train.shape[1] else X_train.shape[1]
-    # Define selector
-    if fitted_fs is not None:
-        fs = fitted_fs
-        fs.k = k - len(comp_features)
-    elif comp_features is not None:
-        k -= len(comp_features)
-        X_train_empt = X_train.copy()
-        X_train_empt[:, comp_features] = 0  # Column to 0 to ensure that the features are not selected
-        fs = SelectKBest(meas_func, k=k).fit(X_train_empt, y_train)
+    if k != 0:
+        # Feature selection
+        k = k if k < X_train.shape[1] else X_train.shape[1]
+        # Define selector
+        if fitted_fs is not None:
+            fs = fitted_fs
+            fs.k = k - len(comp_features)
+        elif comp_features is not None:
+            k -= len(comp_features)
+            X_train_empt = X_train.copy()
+            X_train_empt[:, comp_features] = 0  # Column to 0 to ensure that the features are not selected
+            fs = SelectKBest(meas_func, k=k).fit(X_train_empt, y_train)
+        else:
+            fs = SelectKBest(meas_func, k=k).fit(X_train, y_train)
+        # Build mask
+        fs_indexes = fs.get_support(indices=True)
+        fs_indexes = np.append(fs_indexes, comp_features) if comp_features is not None else fs_indexes
     else:
-        fs = SelectKBest(meas_func, k=k).fit(X_train, y_train)
-    # Build mask
-    fs_indexes = fs.get_support(indices=True)
-    fs_indexes = np.append(fs_indexes, comp_features) if comp_features is not None else fs_indexes
+        fs_indexes = comp_features
+        fs = SelectKBest(meas_func, k="all").fit(X_train, y_train)
     # Transform data
     X_train = X_train[:, fs_indexes]
     X_val = X_val[:, fs_indexes]
@@ -94,7 +108,7 @@ def apply_filter_fs(X_train, X_val, X_test, y_train, k=5, fitted_fs=None,
     return X_train, X_val, X_test, fs
 
 
-def data_loader_creation(X, y, batch_size=32, shuffle=True, model_type='fnn', splits=None):
+def data_loader_creation(X, y, batch_size=256, shuffle=True, model_type='fnn', splits=None):
     """
     Creates a data loader for the given data.
     """
@@ -169,12 +183,18 @@ class Timeseries_Dataset(Dataset):
         self.dataset_type = 'timeseries'
 
     def __len__(self):
-        return len(self.split_labels)
+        return 1  # len(self.split_labels)
 
     def __getitem__(self, index):
-        index_split = self.split_labels[index]
-        mask = self.splits == index_split
-        return self.X[mask], self.y[mask]
+        return self.X, self.y
+
+    # def __len__(self):
+    #     return len(self.split_labels)
+    #
+    # def __getitem__(self, index):
+    #     index_split = self.split_labels[index]
+    #     mask = self.splits == index_split
+    #     return self.X[mask], self.y[mask]
 
 
 # For function testing

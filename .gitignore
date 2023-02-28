@@ -137,3 +137,5 @@ dmypy.json
 *.npy
 *.pt
 *.pkl
+*.pdf
+*.svg
